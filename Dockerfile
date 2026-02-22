@@ -10,11 +10,14 @@ COPY requirements.txt .
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create non-root user
-RUN useradd --create-home appuser
-
 # Copy entire project
 COPY . .
+
+# Train model during build (generates models/model.joblib)
+RUN python src/train.py
+
+# Create non-root user
+RUN useradd --create-home appuser
 
 # Switch to non-root user
 USER appuser
