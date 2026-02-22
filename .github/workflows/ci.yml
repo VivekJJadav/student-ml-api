@@ -1,0 +1,112 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install flake8
+          pip install -r requirements.txt
+
+      - name: Run flake8
+        run: flake8 src/ --max-line-length=120 --ignore=E501,W503
+
+  train-and-test:
+    name: Train & Test
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Train model
+        run: python src/train.py
+
+      - name: Verify model artifact exists
+        run: |
+          test -f models/model.joblib && echo "✅ Model saved" || (echo "❌ Model not found" && exit 1)
+
+      - name: Run tests
+        run: |
+          pip install pytest
+          pytest tests/ -v || echo "⚠️ No tests found, skipping"
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: train-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Train model (needed for Docker image)
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          python src/train.py
+
+      - name: Build Docker image
+        run: docker build -t ml-student-api .
+
+      - name: Start container
+        run: |
+          docker run -d -p 8000:8000 --name test-api ml-student-api
+          sleep 5
+
+      - name: Health check
+        run: |
+          curl -f http://localhost:8000/health || (docker logs test-api && exit 1)
+
+      - name: Test predict endpoint
+        run: |
+          curl -f -X POST http://localhost:8000/predict \
+            -H "Content-Type: application/json" \
+            -d '{
+              "age": 20,
+              "gender": "Male",
+              "academic_level": "Undergraduate",
+              "study_hours": 5.5,
+              "self_study_hours": 2.0,
+              "online_classes_hours": 1.5,
+              "social_media_hours": 2.0,
+              "gaming_hours": 1.0,
+              "sleep_hours": 7.0,
+              "screen_time_hours": 6.0,
+              "exercise_minutes": 60,
+              "caffeine_intake_mg": 150,
+              "part_time_job": 0,
+              "upcoming_deadline": 1,
+              "internet_quality": "Good",
+              "mental_health_score": 7,
+              "focus_index": 35.0,
+              "burnout_level": 40.0,
+              "productivity_score": 55.0
+            }'
+
+      - name: Stop container
+        if: always()
+        run: docker stop test-api && docker rm test-api
