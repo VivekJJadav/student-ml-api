@@ -2,6 +2,8 @@
 
 An end-to-end machine learning pipeline that predicts student exam scores based on productivity and lifestyle features. Built with **scikit-learn**, served via **FastAPI**, and containerized with **Docker** — following production-grade ML engineering practices.
 
+🔗 **Live Demo:** [https://student-ml-api-alox.onrender.com](https://student-ml-api-alox.onrender.com/)
+
 ---
 
 ## 📐 Architecture
