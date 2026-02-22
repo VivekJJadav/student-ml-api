@@ -90,7 +90,8 @@ logger.info(f"Schema validated: {len(pipeline_features)} features match")
 @app.get("/")
 def root():
     return {"message": "Student Exam Prediction API is running"}
-    
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "model_version": MODEL_VERSION}
